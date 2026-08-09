@@ -18,7 +18,15 @@ public final class Images {
 
     public static byte[] compressToFit(Context ctx, Uri uri, int targetBytes) {
         try {
-            Bitmap bmp = decodeSampled(ctx, uri, 1600);
+            return compressToFit(decodeSampled(ctx, uri, 1600), targetBytes);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** Same scale/quality loop from an already-decoded Bitmap (e.g. a token icon). */
+    public static byte[] compressToFit(Bitmap bmp, int targetBytes) {
+        try {
             if (bmp == null) return null;
             int maxDim = 900;
             for (int attempt = 0; attempt < 6; attempt++) {

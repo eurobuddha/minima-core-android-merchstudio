@@ -2,12 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Node-only: no INTERNET permission. All data comes from the local Minima Core node over the
-         broadcast-Intent IPC. Package visibility lets us launch the node app + deliver targeted broadcasts. -->
+    <!-- Node data comes from the local Minima Core node over the broadcast-Intent IPC.
+         Package visibility lets us launch the node app + deliver targeted broadcasts. -->
     <queries>
         <package android:name="org.minimarex.minimacore" />
     </queries>
 
+    <!-- Token/NFT icons may be http(s)/ipfs URLs in the token metadata; node IPC stays broadcast-only. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <!-- New-mail notifications (Android 13+ prompts at runtime). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Scan a contact's Mail-key QR. -->
