@@ -13,8 +13,14 @@
     <!-- Scan a contact's Mail-key QR. -->
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- allowBackup=false: the whole apks/ fleet was scaffolded with allowBackup="true" and empty backup
+         rules, so Android Auto Backup uploaded each app's entire data directory to the user's cloud and
+         restored it on reinstall. Harmless-looking apps still carried the node pairing token, and a
+         reinstall must be a true reset everywhere, not just in the apps holding keys.
+         At stake here: only cache-dir shop drafts (already lost on process death). The shared minima_api_prefs pairing token
+         was the durable leak; vendor identity is re-fetched per launch, so nothing here should survive a reinstall -->
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
