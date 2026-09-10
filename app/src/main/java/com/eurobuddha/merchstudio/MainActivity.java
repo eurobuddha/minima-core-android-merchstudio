@@ -1066,7 +1066,7 @@ public class MainActivity extends AppCompatActivity {
         final EditText in = new EditText(this);
         in.setHint("Price per piece (" + currencyLabel() + ")");
         in.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        in.setTextColor(Design.TEXT); in.setHintTextColor(Design.DIM2);
+        // Native price dialogs inherit matching text and hint colours from their theme.
         new AlertDialog.Builder(this)
                 .setTitle("Price each owned piece")
                 .setView(in)
@@ -1108,7 +1108,7 @@ public class MainActivity extends AppCompatActivity {
         in.setHint("Price for all " + col.ownedCoins.size() + " pieces (" + currencyLabel() + ")");
         if (existing != null && !existing.price.isEmpty()) in.setText(existing.price);
         in.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
-        in.setTextColor(Design.TEXT); in.setHintTextColor(Design.DIM2);
+        // Native price dialogs inherit matching text and hint colours from their theme.
         AlertDialog.Builder b = new AlertDialog.Builder(this)
                 .setTitle("Sell the complete collection")
                 .setMessage("One listing for every piece you hold (" + col.ownedCoins.size() + "). The buyer receives them one by one — each piece is its own on-chain transfer.")
