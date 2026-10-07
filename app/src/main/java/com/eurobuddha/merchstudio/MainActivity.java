@@ -279,12 +279,15 @@ public class MainActivity extends AppCompatActivity {
             if (t.isMinima()) continue;
             String d = t.meta == null ? "" : t.meta.decimals;
             if (!(d.isEmpty() || d.equals("0"))) continue;           // fungible token — not listable here
-            BigInteger held = wholeUnits(t.sendable);
-            if (held.signum() <= 0) continue;                        // nothing spendable (yet)
             if (!Util.isValidHexId(t.tokenid)) continue;
             seen.add(t.tokenid);
+            // Fingerprint BEFORE any sendable gate: StateNFT coins are script-locked, so `balance`
+            // reports sendable:0 for a whole collection — gating on sendable first would hide every
+            // collection from detection (the exact bug this ordering fixes).
             ensureRecord(t.tokenid);                                  // memoized script fingerprint
             if (collections.containsKey(t.tokenid)) continue;         // a collection, not a plain row
+            BigInteger held = wholeUnits(t.sendable);
+            if (held.signum() <= 0) continue;                        // plain NFTs must be `send`-able
             NftListing l = listings.get(t.tokenid);
             if (l == null) {
                 l = new NftListing();
