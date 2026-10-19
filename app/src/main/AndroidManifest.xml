@@ -14,6 +14,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Scan a contact's Mail-key QR. -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <!-- allowBackup=false: the whole apks/ fleet was scaffolded with allowBackup="true" and empty backup
          rules, so Android Auto Backup uploaded each app's entire data directory to the user's cloud and

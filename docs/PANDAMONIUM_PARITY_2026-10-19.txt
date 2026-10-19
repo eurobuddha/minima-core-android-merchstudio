@@ -1,0 +1,22 @@
+Standalone parity checkpoint: minimall-studio 0.3.5 / code 305
+
+Reused Pandamonium scripts/adapt-pandamonium-token-metadata.py, based on
+MinimaCore balance/tokens/TokenMeta.java. Serialized token/name objects and command
+envelopes resolve human names and artwork URLs without mutating token metadata.
+Standalone has no tokenNameProvided translation bookkeeping; that hook was omitted.
+StateNft collection cover, name, edition size and image paths use the same decoder.
+Square previews use AppCompatImageView, as NFT Wallet does; camera is declared
+optional, matching AtomiX. Studio refresh/async edit protections remain to port.
+
+Regression fixtures reused from UtxoTokenNamesTest/NftTokenNamesTest cover large
+embedded images, literal multilingual names, missing names and collection envelopes.
+Full standalone JVM suite: 5 tests, 0 failures/errors/skips.
+Offline signed release build passed; lint: 0 errors, 82 warnings.
+Reviewed every changed source/test/config file. No unresolved issue in this display
+port. This checkpoint is not full application review or final rollout approval.
+APK metadata and family certificate verified:
+package: name='com.eurobuddha.merchstudio' versionCode='305' versionName='0.3.5' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'
+Certificate SHA-256: eca1383c9d27683a281fbe6355356267877dc2dd14d963d7cc289ca0700e517f
+Candidate: dist/minimall-studio-0.3.5-candidate.apk
+SHA-256: cfae8a3c7d4c7ca6118fe339a95f22d53d7b9b381fd522ca325b2a1443a709db
+No installation, publication or live transaction. Fold check remains pending.
