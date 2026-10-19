@@ -53,3 +53,17 @@ Actual APK version/package/family certificate checked.
 Candidate: dist/minimall-studio-0.3.7-candidate.apk
 SHA-256: c4c2dd3312e3cfc05bfd4749195103c517dfd9a7a8b19c0f1edd94988b761a8a
 Still unpublished; no live token or device operation performed.
+
+Transport repair checkpoint: 0.3.8/code308
+Reuses scripts/adapt-pandamonium-malls.py payment argument checks and main-handler
+command dispatch with closed-connection rejection. Standalone MinimaAPI retained.
+Reuses PaymentArgumentsTest and NodeApiThreadingTest with package/client imports
+adapted. Valid amounts and order references remain unchanged; malformed command
+arguments cannot reach the node. No live transaction performed.
+Review: inspected complete transport/wrapper, callers and tests; compared final
+diffs against canonical blocks. No blocking finding in these bounded changes.
+Offline tests, signed build and lint passed: 28 tests; 0 lint errors, 85 warnings.
+Actual package/version/signature/ZIP integrity checked: dist/minimall-studio-0.3.8-candidate.apk
+SHA256: 1d4008440fc42dfcd8860f84bcec28f42abab5b1ecfaf7c6d21228aba812a9a9
+Receipt validation, durable sends/retry handling and full parity remain open.
+No installation or publication.
