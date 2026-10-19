@@ -66,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
     private LazySodium ls;
     private NodeApi node;
     private boolean paired = false;
+    private final java.util.Set<String> walletTokens = new java.util.HashSet<>();
     private String vendorPublicId = "", vendorAddress = "";
 
     private String shopName = "", about = "";
@@ -120,6 +121,7 @@ public class MainActivity extends AppCompatActivity {
         String name = "", description = "";
         String price = "";
         int maxUnits = 10;
+        long photoRequest;
         String imageB64 = "";                 // bare base64 JPEG, compressed on pick
     }
 
@@ -155,7 +157,8 @@ public class MainActivity extends AppCompatActivity {
 
         seedShipping();
         imagePicker = registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.GetContent(), uri -> {
-            if (uri != null && pickingFor != null) attachPhoto(pickingFor, uri);
+            TypedProduct target = pickingFor; pickingFor = null;
+            if (uri != null && target != null && typedProducts.contains(target)) attachPhoto(target, uri);
         });
 
         showGallery();
@@ -170,17 +173,28 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void attachPhoto(final TypedProduct p, final android.net.Uri uri) {
+        if (isFinishing() || isDestroyed() || !typedProducts.contains(p)) return;
+        final long request = ++p.photoRequest;
         io.execute(() -> {
-            byte[] jpeg = Images.compressToFit(MainActivity.this, uri, 90000);   // ~90KB, plenty for a bundle
-            if (jpeg == null) { ui.post(() -> toast("Couldn't read that image.")); return; }
-            p.imageB64 = android.util.Base64.encodeToString(jpeg, android.util.Base64.NO_WRAP);
-            ui.post(() -> {
-                View top = stack.peek();
-                Object tag = top == null ? null : top.getTag();
-                if (tag != null && tag.toString().startsWith("product:")) refreshTop(buildProductEditor(p));
-                else refreshIfTag("gallery");
-            });
+            byte[] jpeg = Images.compressToFit(MainActivity.this, uri, 90000);
+            final String encoded = jpeg == null ? null : android.util.Base64.encodeToString(jpeg, android.util.Base64.NO_WRAP);
+            ui.post(() -> applyPhoto(p, request, encoded));
         });
+    }
+
+    /** Same view ownership rule as ImageLoader.loadOver; never replace an unrelated editor. */
+    private void applyPhoto(TypedProduct p, long request, String encoded) {
+        if (isFinishing() || isDestroyed() || !typedProducts.contains(p) || p.photoRequest != request) return;
+        if (encoded == null) { toast("Couldn't read that image."); return; }
+        p.imageB64 = encoded;
+        for (View page : stack) {
+            ImageView photo = page.findViewWithTag(p);
+            if (photo == null) continue;
+            photo.setImageBitmap(decodeB64(encoded));
+            TextView caption = page.findViewWithTag("photoHint:" + System.identityHashCode(p));
+            if (caption != null) caption.setText("Tap to change the photo");
+        }
+        refreshIfTag("gallery");
     }
 
     /** Everything that will land in the exported .shop — typed products plus listed NFTs. */
@@ -254,8 +268,11 @@ public class MainActivity extends AppCompatActivity {
         refreshIfTag("gallery");
         node.cmd("balance", new NodeApi.Cb() {
             @Override public void onResult(JSONObject j) {
+                final JSONArray rows;
+                try { rows = StudioData.balances(j); }
+                catch (IllegalArgumentException invalid) { onError(invalid.getMessage()); return; }
                 nftsLoading = false; nftsLoaded = true;
-                mergeBalances(j.optJSONArray("response"));
+                mergeBalances(rows);
                 refreshIfTag("gallery");
             }
             @Override public void onError(String m) {
@@ -270,6 +287,9 @@ public class MainActivity extends AppCompatActivity {
      *  StateNFT collections (script-fingerprinted via ensureRecord) are promoted OUT of the plain
      *  list — their individual pieces are enumerated per-coin by loadCollectionCoins. */
     private void mergeBalances(JSONArray rows) {
+        if (rows == null) return;
+        walletTokens.clear();
+        for (int i=0;i<rows.length();i++) walletTokens.add(rows.optJSONObject(i).optString("tokenid"));
         java.util.HashSet<String> seen = new java.util.HashSet<>();
         LinkedHashMap<String, NftListing> fresh = new LinkedHashMap<>();
         if (rows != null) for (int i = 0; i < rows.length(); i++) {
@@ -284,7 +304,7 @@ public class MainActivity extends AppCompatActivity {
             // Fingerprint BEFORE any sendable gate: StateNFT coins are script-locked, so `balance`
             // reports sendable:0 for a whole collection — gating on sendable first would hide every
             // collection from detection (the exact bug this ordering fixes).
-            ensureRecord(t.tokenid);                                  // memoized script fingerprint
+            // Fingerprint after the new balance snapshot has been installed.
             if (collections.containsKey(t.tokenid)) continue;         // a collection, not a plain row
             BigInteger held = wholeUnits(t.sendable);
             if (held.signum() <= 0) continue;                        // plain NFTs must be `send`-able
@@ -305,8 +325,6 @@ public class MainActivity extends AppCompatActivity {
             if (!seen.contains(e.getKey())) {
                 it.remove();
                 listings.keySet().removeIf(k -> k.startsWith(e.getKey() + "#"));
-            } else {
-                loadCollectionCoins(e.getValue());
             }
         }
         // Carry surviving piece listings across the rebuild (managed by loadCollectionCoins).
@@ -315,34 +333,47 @@ public class MainActivity extends AppCompatActivity {
         }
         listings.clear();
         listings.putAll(fresh);
+        for (StateCollection col : new ArrayList<>(collections.values())) loadCollectionCoins(col);
+        for (String tokenid : seen) ensureRecord(tokenid);
     }
 
     /** Fetch (once per process) the token record and promote StateNFT collections. */
     private void ensureRecord(final String tokenid) {
-        if (tokenRecords.containsKey(tokenid) || fetchingRecords.contains(tokenid)) return;
+        JSONObject cached = tokenRecords.get(tokenid);
+        if (cached != null) { adoptTokenRecord(tokenid, cached); return; }
+        if (fetchingRecords.contains(tokenid)) return;
         fetchingRecords.add(tokenid);
         node.cmd("tokens tokenid:" + tokenid, new NodeApi.Cb() {
             @Override public void onResult(JSONObject j) {
                 fetchingRecords.remove(tokenid);
+                if (isFinishing() || isDestroyed() || !walletTokens.contains(tokenid)
+                        || j == null || !Boolean.TRUE.equals(j.opt("status"))) return;
                 Object resp = j.opt("response");
                 JSONObject tok = null;
                 if (resp instanceof JSONObject) tok = (JSONObject) resp;
                 else if (resp instanceof JSONArray && ((JSONArray) resp).length() > 0) tok = ((JSONArray) resp).optJSONObject(0);
                 if (tok == null) return;
+                if (!tokenid.equalsIgnoreCase(tok.optString("tokenid", ""))
+                        || !(tok.opt("script") instanceof String)) return;
                 tokenRecords.put(tokenid, tok);
-                String script = tok.optString("script", "");
-                if (!StateNft.isStateNftScript(script)) return;
-                StateCollection col = new StateCollection();
-                col.tokenid = tokenid;
-                col.meta = StateNft.parseMeta(tokenid, tok);
-                col.legacy = !script.startsWith("LET s=PREVSTATE");
-                collections.put(tokenid, col);
-                listings.remove(tokenid);                     // no longer a plain aggregate row
-                loadCollectionCoins(col);
-                refreshIfTag("gallery");
+                adoptTokenRecord(tokenid, tok);
             }
             @Override public void onError(String m) { fetchingRecords.remove(tokenid); }
         });
+    }
+
+    private void adoptTokenRecord(String tokenid, JSONObject tok) {
+        if (!walletTokens.contains(tokenid) || collections.containsKey(tokenid)) return;
+        String script = tok.optString("script", "");
+        if (!StateNft.isStateNftScript(script)) return;
+        StateCollection col = new StateCollection();
+        col.tokenid = tokenid;
+        col.meta = StateNft.parseMeta(tokenid, tok);
+        col.legacy = !script.startsWith("LET s=PREVSTATE");
+        collections.put(tokenid, col);
+        listings.remove(tokenid);             // no longer a plain aggregate row
+        loadCollectionCoins(col);
+        refreshIfTag("gallery");
     }
 
     /** Enumerate the collection's coins in this wallet (bounded per-token query); rebuild piece
@@ -352,19 +383,23 @@ public class MainActivity extends AppCompatActivity {
         col.coinsLoading = true;
         node.cmd("coins relevant:true tokenid:" + col.tokenid, new NodeApi.Cb() {
             @Override public void onResult(JSONObject j) {
+                if (isFinishing() || isDestroyed() || collections.get(col.tokenid) != col) return;
+                final JSONArray arr;
+                try { arr = StudioData.collection(j, col.tokenid, col.meta.size); }
+                catch (IllegalArgumentException invalid) { onError(invalid.getMessage()); return; }
                 col.coinsLoading = false; col.coinsLoaded = true; col.tooLong = false;
                 col.ownedCoins.clear(); col.unstampedCount = 0;
                 java.util.HashSet<String> liveKeys = new java.util.HashSet<>();
-                JSONArray arr = j.optJSONArray("response");
                 if (arr != null) for (int i = 0; i < arr.length(); i++) {
                     JSONObject c = arr.optJSONObject(i);
                     if (c == null || !Util.isValidHexId(c.optString("coinid", ""))) continue;
                     if (StateNft.isBuried(c)) continue;                           // graveyard coins still get tracked
                     String idx = StateNft.stamped(c);
                     if (idx == null) { col.unstampedCount++; continue; }          // sentinel — not listable
-                    if (!idx.matches("^[0-9]+$") || !StateNft.replayableState(c)) continue;  // hostile state
+                    int index = StudioData.pieceIndex(c, col.meta.size);
+                    if (index <= 0 || !StateNft.replayableState(c)) continue;
                     col.ownedCoins.add(c);
-                    String key = col.tokenid + "#" + idx;
+                    String key = col.tokenid + "#" + index;
                     liveKeys.add(key);
                     NftListing l = listings.get(key);
                     if (l == null) {
@@ -374,19 +409,25 @@ public class MainActivity extends AppCompatActivity {
                         l.units = "1";
                         listings.put(key, l);
                     }
+                    String previousArt = artUrlOf(l);
                     l.tokenid = col.tokenid;
-                    l.stateIdx = Integer.parseInt(idx);
+                    l.stateIdx = index;
                     l.coinRaw = c;
                     l.snMeta = col.meta;
+                    if (!previousArt.equals(artUrlOf(l))) l.cachedB64 = "";
                 }
+                // A live bundle is a listing, not a coin; retain its edits while any pieces remain.
+                if (!col.ownedCoins.isEmpty()) liveKeys.add(col.tokenid + "#ALL");
                 // pieces that left the wallet are no longer listable
                 listings.keySet().removeIf(k -> k.startsWith(col.tokenid + "#") && !liveKeys.contains(k));
                 refreshIfTag("gallery");
                 refreshIfCollection(col.tokenid);
             }
             @Override public void onError(String m) {
+                if (isFinishing() || isDestroyed() || collections.get(col.tokenid) != col) return;
                 col.coinsLoading = false;
                 if (NodeApi.ERR_TOO_LONG.equals(m)) col.tooLong = true;
+                else toast("Couldn't read wallet: " + m);
                 refreshIfTag("gallery");
                 refreshIfCollection(col.tokenid);
             }
@@ -596,6 +637,7 @@ public class MainActivity extends AppCompatActivity {
         col.addView(sv, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         ImageView photo = new ImageView(this);
+        photo.setTag(p);
         photo.setScaleType(ImageView.ScaleType.CENTER_CROP);
         photo.setBackground(Design.roundBg(this, Design.SURFACE2, 14));
         photo.setClipToOutline(true);
@@ -604,6 +646,7 @@ public class MainActivity extends AppCompatActivity {
         photo.setOnClickListener(v -> { pickingFor = p; imagePicker.launch("image/*"); });
         body.addView(photo);
         TextView tap = new TextView(this);
+        tap.setTag("photoHint:" + System.identityHashCode(p));
         tap.setText(p.imageB64.isEmpty() ? "Tap to add a photo" : "Tap to change the photo");
         tap.setTextColor(Design.DIM2); tap.setTextSize(11f); tap.setGravity(Gravity.CENTER); tap.setPadding(0, dp(6), 0, 0);
         body.addView(tap);
@@ -1130,6 +1173,7 @@ public class MainActivity extends AppCompatActivity {
                         l.units = "1";
                         listings.put(col.tokenid + "#ALL", l);
                     }
+                    String previousArt = artUrlOf(l);
                     l.tokenid = col.tokenid; l.bundle = true; l.snMeta = col.meta;
                     l.listed = true; l.price = p;
                     refreshIfCollection(col.tokenid);

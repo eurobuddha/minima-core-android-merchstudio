@@ -20,3 +20,18 @@ Certificate SHA-256: eca1383c9d27683a281fbe6355356267877dc2dd14d963d7cc289ca0700
 Candidate: dist/minimall-studio-0.3.5-candidate.apk
 SHA-256: cfae8a3c7d4c7ca6118fe339a95f22d53d7b9b381fd522ca325b2a1443a709db
 No installation, publication or live transaction. Fold check remains pending.
+
+Refresh checkpoint: MiniMall Studio 0.3.6 / code306
+Reused adapt-pandamonium-mall-studio-refresh.py, StudioData.java, StudioDataTest and
+NodeApiResponseTest. Only resource/text bindings and mocked transport names changed;
+BigDecimal.intValueExact (Future Cash AuditRunner) replaces BigInteger.intValueExact
+to support Android 9 while preserving exact range checks. Failed/malformed reads
+preserve edits; removed/replaced collections ignore stale replies. Photo callbacks
+update their own editor without replacing another draft. Surviving collection
+bundles keep edits, and changed piece artwork invalidates its cached preview.
+Reviewed caller lifecycle, parser, protocol gates and regression cases.
+18 tests passed; signed offline build passed; lint 0 errors / 84 warnings.
+Actual package/version and certificate verified. No open finding within this port.
+Candidate: dist/minimall-studio-0.3.6-candidate.apk
+SHA-256: 4a27429d038d3bddadaef02c15798063fd043657c730fc906ff9a1ddf0c77d4b
+Publication remains held. Studio export protections and remaining app review open.

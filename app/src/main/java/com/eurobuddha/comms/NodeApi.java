@@ -107,7 +107,7 @@ public class NodeApi {
             @Override
             public void response(JSONObject zResponse) {
                 mMain.post(() -> {
-                    if (done[0]) return;
+                    if (done[0] || mReleased) return;
                     done[0] = true;
                     mMain.removeCallbacks(timeout);
                     mPending.remove(timeout);
@@ -115,6 +115,10 @@ public class NodeApi {
 
                     // "enabled":false only appears on the gating reply; real command
                     // responses omit the key, so default true.
+                    if (zResponse == null) {
+                        if (cb != null) cb.onError("Node result unavailable. Outcome unknown.");
+                        return;
+                    }
                     if (!zResponse.optBoolean("enabled", true)) {
                         if (mPairing != null) mPairing.onEnabled(false);
                         if (cb != null) cb.onError(ERR_NOT_ENABLED);
@@ -122,6 +126,14 @@ public class NodeApi {
                     }
                     if (isTooLong(zResponse)) {
                         if (cb != null) cb.onError(ERR_TOO_LONG);
+                        return;
+                    }
+                    if (!(zResponse.opt("status") instanceof Boolean)) {
+                        if (cb != null) cb.onError(zResponse.optString("transporterror", "Node result unavailable. Outcome unknown."));
+                        return;
+                    }
+                    if (!zResponse.optBoolean("status", false)) {
+                        if (cb != null) cb.onError(zResponse.optString("error", zResponse.optString("message", "Invalid node result. Outcome remains unknown.")));
                         return;
                     }
                     // Contain callback crashes: one bad handler must not kill the broadcast pipeline.
