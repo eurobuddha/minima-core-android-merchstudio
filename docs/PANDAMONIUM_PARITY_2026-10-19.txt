@@ -35,3 +35,21 @@ Actual package/version and certificate verified. No open finding within this por
 Candidate: dist/minimall-studio-0.3.6-candidate.apk
 SHA-256: 4a27429d038d3bddadaef02c15798063fd043657c730fc906ff9a1ddf0c77d4b
 Publication remains held. Studio export protections and remaining app review open.
+
+Export checkpoint: MiniMall Studio0.3.7 / code307
+Reused adapt-pandamonium-mall-studio-export.py, ShopExport.java and export-flow.inc.
+The UI captures literal prices, metadata, shipping and image sources before worker
+execution. Each exported URI has its own temporary-write/sync/atomic-rename file;
+subsequent exports cannot replace a previously shared file. Failed refresh results
+remain editable but require verified current wallet data before NFT export.
+Supply counts reject overflow and fractional values instead of wrapping.
+Minimal standalone adaptations: existing fileprovider authority and English labels;
+BigDecimal exact conversions match Pandamonium1.9.106 and support Android9.
+Reused six ShopExportTest cases; only two translation-descriptor cases excluded.
+24 total tests passed; signed offline release succeeded; lint0 errors/85 warnings.
+Reviewed snapshot construction/callers, reader count contract, files/provider,
+worker completion and failure cleanup. No unresolved finding in this export port.
+Actual APK version/package/family certificate checked.
+Candidate: dist/minimall-studio-0.3.7-candidate.apk
+SHA-256: c4c2dd3312e3cfc05bfd4749195103c517dfd9a7a8b19c0f1edd94988b761a8a
+Still unpublished; no live token or device operation performed.

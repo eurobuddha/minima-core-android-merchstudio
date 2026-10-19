@@ -339,12 +339,11 @@ public final class StateNft {
 
     private static int firstInt(Object... vals) {
         for (Object v : vals) {
-            if (v == null) continue;
-            if (v instanceof Number) return ((Number) v).intValue();
+            if (v == null || v == JSONObject.NULL || String.valueOf(v).trim().isEmpty()) continue;
             try {
-                String s = String.valueOf(v).trim();
-                if (!s.isEmpty()) return Integer.parseInt(s);
-            } catch (Exception ignored) {}
+                int count = new java.math.BigDecimal(String.valueOf(v).trim()).intValueExact();
+                return count > 0 ? count : 0;
+            } catch (IllegalArgumentException | ArithmeticException invalid) { return 0; }
         }
         return 0;
     }

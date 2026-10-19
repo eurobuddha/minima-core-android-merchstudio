@@ -89,6 +89,7 @@ public class MainActivity extends AppCompatActivity {
     private final java.util.HashSet<String> fetchingRecords = new java.util.HashSet<>();
     private boolean nftsLoading = false, nftsLoaded = false;
     private boolean exporting = false;
+    private boolean walletVerified = false;
 
     private static final int MAX_PRODUCTS = 40;   // .shop schema cap
 
@@ -132,7 +133,7 @@ public class MainActivity extends AppCompatActivity {
         boolean legacy = false;               // pre-SAMESTATE contract — creator can still rewrite state
         final java.util.List<JSONObject> ownedCoins = new java.util.ArrayList<>();  // stamped + replayable
         int unstampedCount = 0;
-        boolean coinsLoading = false, coinsLoaded = false, tooLong = false;
+        boolean coinsLoading = false, coinsLoaded = false, tooLong = false, coinsVerified = false;
     }
 
     // ---- lifecycle ----
@@ -225,6 +226,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void onPaired(boolean enabled) {
         paired = enabled;
+        if (!enabled) walletVerified = false;
         if (enabled && vendorPublicId.isEmpty()) {
             node.cmd("vault action:seed", new NodeApi.Cb() {
                 @Override public void onResult(JSONObject j) {
@@ -264,14 +266,14 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadNfts() {
         if (nftsLoading) return;
-        nftsLoading = true;
+        nftsLoading = true; walletVerified = false;
         refreshIfTag("gallery");
         node.cmd("balance", new NodeApi.Cb() {
             @Override public void onResult(JSONObject j) {
                 final JSONArray rows;
                 try { rows = StudioData.balances(j); }
                 catch (IllegalArgumentException invalid) { onError(invalid.getMessage()); return; }
-                nftsLoading = false; nftsLoaded = true;
+                nftsLoading = false; nftsLoaded = true; walletVerified = true;
                 mergeBalances(rows);
                 refreshIfTag("gallery");
             }
@@ -380,14 +382,14 @@ public class MainActivity extends AppCompatActivity {
      *  listings keyed tokenid#idx, PRESERVING listing edits (the coinid churns, the idx doesn't). */
     private void loadCollectionCoins(final StateCollection col) {
         if (col.coinsLoading) return;
-        col.coinsLoading = true;
+        col.coinsLoading = true; col.coinsVerified = false;
         node.cmd("coins relevant:true tokenid:" + col.tokenid, new NodeApi.Cb() {
             @Override public void onResult(JSONObject j) {
                 if (isFinishing() || isDestroyed() || collections.get(col.tokenid) != col) return;
                 final JSONArray arr;
                 try { arr = StudioData.collection(j, col.tokenid, col.meta.size); }
                 catch (IllegalArgumentException invalid) { onError(invalid.getMessage()); return; }
-                col.coinsLoading = false; col.coinsLoaded = true; col.tooLong = false;
+                col.coinsLoading = false; col.coinsLoaded = true; col.tooLong = false; col.coinsVerified = true;
                 col.ownedCoins.clear(); col.unstampedCount = 0;
                 java.util.HashSet<String> liveKeys = new java.util.HashSet<>();
                 if (arr != null) for (int i = 0; i < arr.length(); i++) {
@@ -1291,6 +1293,7 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout.LayoutParams el = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         el.setMargins(dp(16), dp(8), dp(16), dp(14)); export.setLayoutParams(el);
         export.setPadding(dp(16), dp(13), dp(16), dp(13));
+        export.setTag("exportShop");
         export.setOnClickListener(v -> exportShop());
         col.addView(export);
 
@@ -1310,7 +1313,16 @@ public class MainActivity extends AppCompatActivity {
             try { if (new BigDecimal(p.price.trim()).signum() <= 0) { toast("Set a price for " + p.name.trim() + "."); return; } }
             catch (Exception e) { toast("Set a price for " + p.name.trim() + "."); return; }
         }
+        if (!sel.isEmpty() && (!paired || !walletVerified || nftsLoading)) {
+            toast("Refresh your wallet before exporting NFT listings."); return;
+        }
         for (NftListing l : sel) {
+            StateCollection collection = collections.get(l.tokenid);
+            if (!tokenRecords.containsKey(l.tokenid) || fetchingRecords.contains(l.tokenid)
+                    || ((l.bundle || l.stateIdx > 0) && (collection == null
+                        || !collection.coinsVerified || collection.coinsLoading))) {
+                toast("Refresh your wallet before exporting NFT listings."); return;
+            }
             if (!priced(l)) { toast("Set a price for " + displayName(l) + "."); return; }
             // A piece must still be in the wallet, stamped and cleanly replayable at export time.
             if (l.stateIdx > 0 && (l.coinRaw == null || StateNft.stamped(l.coinRaw) == null || !StateNft.replayableState(l.coinRaw))) {
@@ -1321,145 +1333,156 @@ public class MainActivity extends AppCompatActivity {
                 if (c == null || c.ownedCoins.isEmpty()) { toast(displayName(l) + " has no pieces left — refresh the gallery."); return; }
             }
         }
+        final ShopExport snapshot;
+        try { snapshot = captureExport(sel); }
+        catch (ArithmeticException unsupported) { toast("The .shop format supports edition and stock counts from 1 to 2,147,483,647. This listing exceeds that limit."); return; }
+        catch (Exception e) { toast("Export failed: " + e.getMessage()); return; }
         exporting = true;
         refreshTop(buildPreview());
         io.execute(() -> {
             try {
-                JSONObject o = new JSONObject();
-                o.put("schema", 3);
-                if (typedProducts.isEmpty()) o.put("shopType", "nft");   // mixed shops render as product lists
-                o.put("shopName", shopName.trim()); o.put("shopId", slug(shopName));
-                if (!about.trim().isEmpty()) o.put("about", about.trim());
-                o.put("vendorPublicId", vendorPublicId); o.put("vendorAddress", vendorAddress);
-                o.put("currency", currency); o.put("tokenid", tokenid);
-                JSONArray sh = new JSONArray();
-                if (typedProducts.isEmpty()) {
-                    // NFT-only: single compat digital row (older miniMall builds need one)
-                    JSONObject so = new JSONObject();
-                    so.put("id", "digital"); so.put("label", "Digital / on-chain delivery"); so.put("fee", "0");
-                    sh.put(so);
-                } else {
-                    for (Catalog.Shipping s : shipping) {
-                        JSONObject so = new JSONObject();
-                        so.put("id", s.id); so.put("label", s.label);
-                        so.put("fee", s.fee == null || s.fee.isEmpty() ? "0" : s.fee);
-                        sh.put(so);
-                    }
-                }
-                o.put("shipping", sh);
-                JSONArray ps = new JSONArray();
-                int i = 0;
-                for (TypedProduct p : typedProducts) {
-                    JSONObject po = new JSONObject();
-                    po.put("id", "p" + (i++));
-                    po.put("name", p.name.trim());
-                    po.put("description", p.description == null ? "" : p.description.trim());
-                    po.put("mode", "units"); po.put("price", p.price.trim());
-                    po.put("maxUnits", Math.max(1, p.maxUnits));
-                    po.put("image", p.imageB64 == null ? "" : p.imageB64);
-                    ps.put(po);
-                }
-                for (NftListing l : sel) {
-                    if (l.cachedB64.isEmpty()) l.cachedB64 = resolveImageB64(l);
-                    JSONObject po = new JSONObject();
-                    po.put("id", "p" + (i++));
-                    po.put("name", displayName(l));
-                    po.put("description", l.description == null ? "" : l.description.trim());
-                    po.put("mode", "units"); po.put("price", l.price.trim());
-                    po.put("image", l.cachedB64);
-                    po.put("nftTokenId", l.tokenid);
-                    if (l.bundle) {
-                        // Complete collection: every piece the seller holds, delivered one by one
-                        StateCollection c = collections.get(l.tokenid);
-                        po.put("maxUnits", 1);
-                        po.put("nftBundle", 1);
-                        po.put("nftPieces", c == null ? 0 : c.ownedCoins.size());
-                        po.put("nftCollection", l.snMeta.name);
-                        po.put("nftSupply", l.snMeta.size);
-                        String bExt = l.snMeta.externalUrl;
-                        if (bExt != null && (bExt.startsWith("http://") || bExt.startsWith("https://"))) po.put("nftExternalUrl", bExt);
-                    } else if (l.stateIdx > 0) {
-                        // StateNFT piece: unique, identified on-chain by state port 0
-                        po.put("maxUnits", 1);
-                        po.put("nftStateIdx", l.stateIdx);
-                        po.put("nftCollection", l.snMeta.name);
-                        po.put("nftSupply", l.snMeta.size);
-                        String pExt = l.snMeta.externalUrl;
-                        if (pExt != null && (pExt.startsWith("http://") || pExt.startsWith("https://"))) po.put("nftExternalUrl", pExt);
-                    } else {
-                        BigInteger held = wholeUnits(l.bal.sendable);
-                        po.put("maxUnits", clampUnits(l, held).intValue());
-                        po.put("nftSupply", wholeUnits(l.bal.total).intValue());
-                        String tkr = l.bal.meta.ticker;
-                        if (tkr != null && !tkr.isEmpty()) po.put("nftTicker", tkr);
-                        String ext = l.bal.meta.externalUrl;
-                        if (ext != null && (ext.startsWith("http://") || ext.startsWith("https://"))) po.put("nftExternalUrl", ext);
-                    }
-                    ps.put(po);
-                }
-                o.put("products", ps);
-
-                // Collection directory: name/size/top-side icon per referenced collection, so the
-                // buyer app can show the standard token icon alongside the stamped piece art.
-                java.util.LinkedHashSet<String> colIds = new java.util.LinkedHashSet<>();
-                for (NftListing l : sel) if (l.snMeta != null && (l.stateIdx > 0 || l.bundle)) colIds.add(l.tokenid);
-                if (!colIds.isEmpty()) {
-                    JSONArray cols = new JSONArray();
-                    for (String tid : colIds) {
-                        StateCollection c = collections.get(tid);
-                        if (c == null) continue;
-                        JSONObject co = new JSONObject();
-                        co.put("tokenid", tid);
-                        co.put("name", c.meta.name);
-                        co.put("size", c.meta.size);
-                        String iconB64 = resolveIconB64(c);
-                        if (!iconB64.isEmpty()) co.put("icon", iconB64);
-                        cols.put(co);
-                    }
-                    o.put("nftCollections", cols);
-                }
-
-                File dir = new File(getCacheDir(), "shops"); dir.mkdirs();
-                File f = new File(dir, slug(shopName) + ".shop");
-                try (FileWriter w = new FileWriter(f)) { w.write(o.toString()); }
+                File f = snapshot.write(getCacheDir(), MainActivity::resolveExportImage);
                 Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", f);
                 ui.post(() -> {
-                    exporting = false;
-                    refreshTop(buildPreview());
+                    finishExport();
+                    if (isFinishing() || isDestroyed()) return;
                     Intent send = new Intent(Intent.ACTION_SEND);
                     send.setType("application/octet-stream");
                     send.putExtra(Intent.EXTRA_STREAM, uri);
-                    send.putExtra(Intent.EXTRA_SUBJECT, shopName.trim() + " — miniMall shop");
+                    send.putExtra(Intent.EXTRA_SUBJECT, snapshot.name + " — miniMall shop");
                     send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    startActivity(Intent.createChooser(send, "Share your shop"));
+                    try { startActivity(Intent.createChooser(send, "Share your shop")); }
+                    catch (RuntimeException e) { toast("Export failed: " + e.getMessage()); }
                 });
             } catch (Exception e) {
-                ui.post(() -> { exporting = false; refreshTop(buildPreview()); toast("Export failed: " + e.getMessage()); });
+                ui.post(() -> {
+                    finishExport();
+                    if (!isFinishing() && !isDestroyed()) toast("Export failed: " + e.getMessage());
+                });
             }
         });
     }
 
-    /** The collection's top-side token icon → small bare base64 JPEG (identicon fallback). */
-    private String resolveIconB64(StateCollection col) {
-        Bitmap bmp = null;
-        String iconUrl = IconResolver.resolve(col.meta.icon);
-        if (iconUrl != null && !iconUrl.isEmpty()) bmp = ImageLoader.decodeSync(iconUrl, 320);
-        if (bmp == null) bmp = Identicon.forToken(col.tokenid, 256);
-        byte[] jpeg = Images.compressToFit(bmp, 24000);
-        return jpeg == null ? "" : android.util.Base64.encodeToString(jpeg, android.util.Base64.NO_WRAP);
+    /** Completion updates only the export controls, preserving any current editor and cursor. */
+    private void finishExport() {
+        exporting = false;
+        if (isFinishing() || isDestroyed()) return;
+        for (View page : stack) {
+            TextView button = page.findViewWithTag("exportShop");
+            if (button != null) button.setText("Export & share .shop");
+        }
     }
 
-    /** The listing's art → bare base64 JPEG for the .shop image field (identicon when unfetchable).
-     *  StateNFT pieces use their state-embedded art (SVG rasterizes via androidsvg); plain NFTs the
-     *  token icon. Runs on the io executor: url-mode/http icons may hit the network. */
-    private String resolveImageB64(NftListing l) {
+    /** Called on the UI thread. All prices, shipping, metadata and image sources become literals. */
+    private ShopExport captureExport(List<NftListing> sel) throws Exception {
+        List<ShopExport.Image> images = new ArrayList<>();
+        JSONObject o = new JSONObject();
+        o.put("schema", 3);
+        if (typedProducts.isEmpty()) o.put("shopType", "nft");   // mixed shops render as product lists
+        o.put("shopName", shopName.trim()); o.put("shopId", slug(shopName));
+        if (!about.trim().isEmpty()) o.put("about", about.trim());
+        o.put("vendorPublicId", vendorPublicId); o.put("vendorAddress", vendorAddress);
+        o.put("currency", currency); o.put("tokenid", tokenid);
+        JSONArray sh = new JSONArray();
+        if (typedProducts.isEmpty()) {
+            // NFT-only: single compat digital row (older miniMall builds need one)
+            JSONObject so = new JSONObject();
+            so.put("id", "digital"); so.put("label", "Digital / on-chain delivery"); so.put("fee", "0");
+            sh.put(so);
+        } else {
+            for (Catalog.Shipping s : shipping) {
+                JSONObject so = new JSONObject();
+                so.put("id", s.id); so.put("label", s.label);
+                so.put("fee", s.fee == null || s.fee.isEmpty() ? "0" : s.fee);
+                sh.put(so);
+            }
+        }
+        o.put("shipping", sh);
+        JSONArray ps = new JSONArray();
+        int i = 0;
+        for (TypedProduct p : typedProducts) {
+            JSONObject po = new JSONObject();
+            po.put("id", "p" + (i++));
+            po.put("name", p.name.trim());
+            po.put("description", p.description == null ? "" : p.description.trim());
+            po.put("mode", "units"); po.put("price", p.price.trim());
+            po.put("maxUnits", Math.max(1, p.maxUnits));
+            po.put("image", p.imageB64 == null ? "" : p.imageB64);
+            ps.put(po);
+        }
+        for (NftListing l : sel) {
+
+            JSONObject po = new JSONObject();
+            po.put("id", "p" + (i++));
+            po.put("name", displayName(l));
+            po.put("description", l.description == null ? "" : l.description.trim());
+            po.put("mode", "units"); po.put("price", l.price.trim());
+            po.put("image", l.cachedB64);
+            if (l.cachedB64.isEmpty()) images.add(new ShopExport.Image("products", ps.length(), "image",
+                    artUrlOf(l), identiconKey(l), 900, 512, 90000));
+            po.put("nftTokenId", l.tokenid);
+            if (l.bundle) {
+                // Complete collection: every piece the seller holds, delivered one by one
+                StateCollection c = collections.get(l.tokenid);
+                po.put("maxUnits", 1);
+                po.put("nftBundle", 1);
+                po.put("nftPieces", c == null ? 0 : c.ownedCoins.size());
+                po.put("nftCollection", l.snMeta.name);
+                po.put("nftSupply", ShopExport.count(BigInteger.valueOf(l.snMeta.size)));
+                String bExt = l.snMeta.externalUrl;
+                if (bExt != null && (bExt.startsWith("http://") || bExt.startsWith("https://"))) po.put("nftExternalUrl", bExt);
+            } else if (l.stateIdx > 0) {
+                // StateNFT piece: unique, identified on-chain by state port 0
+                po.put("maxUnits", 1);
+                po.put("nftStateIdx", l.stateIdx);
+                po.put("nftCollection", l.snMeta.name);
+                po.put("nftSupply", ShopExport.count(BigInteger.valueOf(l.snMeta.size)));
+                String pExt = l.snMeta.externalUrl;
+                if (pExt != null && (pExt.startsWith("http://") || pExt.startsWith("https://"))) po.put("nftExternalUrl", pExt);
+            } else {
+                BigInteger held = wholeUnits(l.bal.sendable);
+                po.put("maxUnits", ShopExport.count(clampUnits(l, held)));
+                po.put("nftSupply", ShopExport.count(wholeUnits(l.bal.total)));
+                String tkr = l.bal.meta.ticker;
+                if (tkr != null && !tkr.isEmpty()) po.put("nftTicker", tkr);
+                String ext = l.bal.meta.externalUrl;
+                if (ext != null && (ext.startsWith("http://") || ext.startsWith("https://"))) po.put("nftExternalUrl", ext);
+            }
+            ps.put(po);
+        }
+        o.put("products", ps);
+
+        // Collection directory: name/size/top-side icon per referenced collection, so the
+        // buyer app can show the standard token icon alongside the stamped piece art.
+        java.util.LinkedHashSet<String> colIds = new java.util.LinkedHashSet<>();
+        for (NftListing l : sel) if (l.snMeta != null && (l.stateIdx > 0 || l.bundle)) colIds.add(l.tokenid);
+        if (!colIds.isEmpty()) {
+            JSONArray cols = new JSONArray();
+            for (String tid : colIds) {
+                StateCollection c = collections.get(tid);
+                if (c == null) continue;
+                JSONObject co = new JSONObject();
+                co.put("tokenid", tid);
+                co.put("name", c.meta.name);
+                co.put("size", ShopExport.count(BigInteger.valueOf(c.meta.size)));
+                images.add(new ShopExport.Image("nftCollections", cols.length(), "icon",
+                        IconResolver.resolve(c.meta.icon), c.tokenid, 320, 256, 24000));
+                cols.put(co);
+            }
+            o.put("nftCollections", cols);
+        }
+
+
+        return new ShopExport(o, slug(shopName), images);
+    }
+
+    /** Same image resolution, fallbacks and byte budgets as the original Studio exporter. */
+    private static String resolveExportImage(ShopExport.Image image) {
         Bitmap bmp = null;
-        String artUrl = artUrlOf(l);
-        if (!artUrl.isEmpty()) bmp = ImageLoader.decodeSync(artUrl, 900);
-        if (bmp == null) bmp = Identicon.forToken(identiconKey(l), 512);
-        byte[] jpeg = Images.compressToFit(bmp, 90000);   // ~90KB, same budget as miniMall Studio photos
-        if (jpeg == null) return "";
-        return android.util.Base64.encodeToString(jpeg, android.util.Base64.NO_WRAP);
+        if (image.url != null && !image.url.isEmpty()) bmp = ImageLoader.decodeSync(image.url, image.decodeSize);
+        if (bmp == null) bmp = Identicon.forToken(image.identity, image.fallbackSize);
+        byte[] jpeg = Images.compressToFit(bmp, image.budget);
+        return jpeg == null ? "" : android.util.Base64.encodeToString(jpeg, android.util.Base64.NO_WRAP);
     }
 
     // ---- helpers ----
