@@ -29,7 +29,9 @@ public class StudioDataTest {
  @Test public void hostileEditionNumbersCannotOverflowOrAliasTwoListings(){
   for(String idx:new String[]{"0","00","-1","1 burn:9","2147483648","9".repeat(100)})assertEquals(-1,StudioData.pieceIndex(coin(1,idx),100));
   assertEquals(-1,StudioData.pieceIndex(coin(1,"101"),100));assertEquals(7,StudioData.pieceIndex(coin(1,"0007"),100));
-  rejects(()->StudioData.collection(reply(new JSONArray().put(coin(1,"7")).put(coin(2,"0007"))),TOKEN,100));
+  // Two replayable coins on one index is a creator-side fault, not a bad node reply: the message names it.
+  assertEquals("Collection has two pieces stamped #7 — fix on-chain before listing",
+   assertThrows(IllegalArgumentException.class,()->StudioData.collection(reply(new JSONArray().put(coin(1,"7")).put(coin(2,"0007"))),TOKEN,100)).getMessage());
  }
  @Test public void malformedStateCannotSilentlyEraseKnownPieces()throws Exception{
   for(Object state:new Object[]{JSONObject.NULL,"invalid",new JSONArray().put("bad"),new JSONArray().put(obj("port",0,"data","1")).put(obj("port","00","data","2")),obj("0",true),obj("0","1","256","2")}){JSONObject bad=coin(1,"1").put("state",state);rejects(()->StudioData.collection(reply(new JSONArray().put(bad)),TOKEN,100));}
@@ -52,36 +54,7 @@ public class StudioDataTest {
    assertEquals("2",token.sendable);assertEquals("100",token.total);assertEquals(before,input.toString());
   }
  }
- @Test public void serializedShopCollectionsResolveCoversAndPieceArt() throws Exception {
-  JSONObject details=obj("name","Collection 中文 Українська","size",12,"mode","url",
-    "base","https://example.invalid/nft/","ext",".png","url","https://example.invalid/cover.png");
-  for(Object metadata:new Object[]{details,details.toString()}) {
-   JSONObject token=obj("name",metadata,"totalamount","12");
-   for(Object value:new Object[]{token,token.toString()}) {
-    JSONObject envelope=obj("token",value,"script","RETURN TRUE");String before=envelope.toString();
-    for(Object record:new Object[]{envelope,envelope.toString(),value}) {
-     StateNft.Meta meta=StateNft.parseMeta(TOKEN,record);
-     assertEquals("Collection 中文 Українська",meta.name);assertEquals(12,meta.size);
-     assertEquals("url",meta.mode);assertTrue(StateNft.isCandidate(meta));
-     assertEquals("https://example.invalid/cover.png",meta.icon);
-     assertEquals("https://example.invalid/nft/3.png",StateNft.imageUrl(meta,3,null));
-     TokenMeta cover=TokenMeta.parse(record,TOKEN);assertEquals(meta.name,cover.name);assertEquals(meta.icon,cover.iconUrl);
-    }
-    assertEquals(before,envelope.toString());
-   }
-  }
- }
- @Test public void missingNamesNeverExposeStructuredMetadataAsShopLabels() {
-  JSONObject details=obj("url","https://example.invalid/cover.png","size",12);
-  for(Object metadata:new Object[]{details,details.toString()}) {
-   JSONObject token=obj("name",metadata);
-   assertEquals("Collection",StateNft.parseMeta(TOKEN,token).name);
-   assertEquals("Token",TokenMeta.parse(token,TOKEN).name);
-   assertEquals("Token",Util.tokenName(token,TOKEN));
-  }
-  for(String name:new String[]{"Token","Send","[1,2]","{unfinished","中文 Русский Українська"})
-   assertEquals(name,TokenMeta.parse(name,TOKEN).name);
- }
+ // Collection cover/piece-art and missing-name parity lives in TokenMetadataParityTest.
 
  @Test public void unstampedAndUnsupportedStateDoNotHideTheEntireCollection() throws Exception {
   for(Object state:new Object[]{new JSONArray(),obj(),obj("1","[AAAA]"),obj("0","\"1\""),obj("0","1","2","creator note")}) {

@@ -43,11 +43,31 @@ final class ShopExport {
         return result;
     }
 
+    /** A count of 0 or less: the listing carries no usable edition/stock size (not an overflow). */
+    static final class NonPositiveCountException extends IllegalArgumentException {
+        NonPositiveCountException(String message) { super(message); }
+    }
+
     /** miniMall's v3 reader and quantity controls use positive signed 32-bit counts. */
-    static int count(BigInteger value) {
-        int n=new java.math.BigDecimal(value).intValueExact();
-        if (n<=0) throw new ArithmeticException("Non-positive shop count");
+    static int count(int n) {
+        if (n<=0) throw new NonPositiveCountException("This listing has no edition size — refresh the gallery.");
         return n;
+    }
+    /** Same contract for arbitrary-precision amounts; overflow stays an ArithmeticException. */
+    static int count(BigInteger value) {
+        return count(new java.math.BigDecimal(value).intValueExact());
+    }
+
+    /** Export dirs are never reused (each share keeps its own); drop the ones older than a day. */
+    static void pruneStale(File cache) {
+        File[] dirs=new File(cache,"shops").listFiles((d,name)->name.startsWith("export-"));
+        long cutoff=System.currentTimeMillis()-24L*60*60*1000;
+        if (dirs!=null) for (File dir:dirs) {
+            if (dir.lastModified()>=cutoff) continue;
+            File[] files=dir.listFiles();
+            if (files!=null) for (File f:files) f.delete();
+            dir.delete();
+        }
     }
 
     /** Reuse NodeFiles.replaceFrom's temporary-write, sync and atomic-rename ordering.

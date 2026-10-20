@@ -92,8 +92,9 @@ public final class StateNft {
         Meta m = new Meta();
         m.tokenid = tokenid == null ? "" : tokenid;
         JSONObject root = TokenMeta.asObject(tokenNode);
-        // `tokens tokenid:` returns an ENVELOPE — {token:{name:{…},totalamount},script} — while a
-        // balance row hands us the token record directly. Unwrap so either shape parses.
+        // Current core's `tokens tokenid:` returns the token record (tok.toJSON()) directly, like a
+        // balance row; only `tokens action:import` (and older cores) wrap it in an ENVELOPE —
+        // {token:{name:{…},totalamount},script}. Unwrap so either shape parses.
         JSONObject envelope = null;
         JSONObject nested = root == null ? null : TokenMeta.asObject(root.opt("token"));
         if (nested != null) {

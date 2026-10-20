@@ -10,8 +10,8 @@ android {
         applicationId "com.eurobuddha.merchstudio"
         minSdk 28
         targetSdk 35
-        versionCode 308
-        versionName "0.3.8"
+        versionCode 309
+        versionName "0.3.9"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -54,6 +54,9 @@ android {
 dependencies {
     testImplementation 'org.mockito:mockito-core:5.12.0'
     testImplementation 'junit:junit:4.13.2'
+    // JVM org.json is NOT Android's org.json: e.g. optString() on a JSONObject.NULL field returns the
+    // default here but the literal "null" on a device. Never assert on optString of a null field and
+    // trust a green JVM run — exercise that path on-device.
     testImplementation 'org.json:json:20240303'
 
     implementation libs.appcompat

@@ -1,113 +1,113 @@
 {
   "app/build.gradle": {
-    "mtime": 1786273883.7693243,
-    "ast_hash": "e546dc8c5c19d979e7df403d10e45ccb",
+    "mtime": 1788463976.3256629,
+    "ast_hash": "3b317b75602394cfdd4ace65bdccc6dd",
     "semantic_hash": ""
   },
   "app/src/main/java/com/eurobuddha/comms/Avatars.java": {
-    "mtime": 1783342241.4959757,
+    "mtime": 1786290191.3787465,
     "ast_hash": "f0ee4fb86d0893e146e12096828c9df5",
     "semantic_hash": "f0ee4fb86d0893e146e12096828c9df5"
   },
   "app/src/main/java/com/eurobuddha/comms/BackupCrypto.java": {
-    "mtime": 1783342241.499697,
+    "mtime": 1786290191.3795185,
     "ast_hash": "f990ec6e8293278bf6b5a20765e090a0",
     "semantic_hash": "f990ec6e8293278bf6b5a20765e090a0"
   },
   "app/src/main/java/com/eurobuddha/comms/CommsIdentity.java": {
-    "mtime": 1783342241.4951403,
+    "mtime": 1786290191.3799577,
     "ast_hash": "e47b74424a42fb2d86c711e2198ee02a",
     "semantic_hash": "e47b74424a42fb2d86c711e2198ee02a"
   },
   "app/src/main/java/com/eurobuddha/comms/CommsScanner.java": {
-    "mtime": 1783342241.493816,
+    "mtime": 1786290191.3807564,
     "ast_hash": "20461d8b6933342b91ee4df9ea5a8087",
     "semantic_hash": "20461d8b6933342b91ee4df9ea5a8087"
   },
   "app/src/main/java/com/eurobuddha/comms/CommsTransport.java": {
-    "mtime": 1783342241.5008118,
+    "mtime": 1786290191.381614,
     "ast_hash": "e5f91cb0c8b1fd42f84f4e154292365c",
     "semantic_hash": "e5f91cb0c8b1fd42f84f4e154292365c"
   },
   "app/src/main/java/com/eurobuddha/comms/CryptoProvider.java": {
-    "mtime": 1783342241.5004928,
+    "mtime": 1786290191.3819458,
     "ast_hash": "b5386e1a7eb9f114ad1d06d027ffac07",
     "semantic_hash": "b5386e1a7eb9f114ad1d06d027ffac07"
   },
   "app/src/main/java/com/eurobuddha/comms/Hex.java": {
-    "mtime": 1783342241.4955626,
+    "mtime": 1786290191.3823886,
     "ast_hash": "0aa68c2dd2a4ab9bf94bbb22adcaed01",
     "semantic_hash": "0aa68c2dd2a4ab9bf94bbb22adcaed01"
   },
   "app/src/main/java/com/eurobuddha/comms/Hkdf.java": {
-    "mtime": 1783342241.4942431,
+    "mtime": 1786290191.3828351,
     "ast_hash": "5d9856e8862faedbe8f9e9262a0e80d2",
     "semantic_hash": "5d9856e8862faedbe8f9e9262a0e80d2"
   },
   "app/src/main/java/com/eurobuddha/comms/Images.java": {
-    "mtime": 1783342241.4977715,
-    "ast_hash": "6e58a0785ae6e08f622b66df79447925",
-    "semantic_hash": "6e58a0785ae6e08f622b66df79447925"
+    "mtime": 1786290191.3833702,
+    "ast_hash": "f51eb0721d0a7483ec816f8839b6edc3",
+    "semantic_hash": ""
   },
   "app/src/main/java/com/eurobuddha/comms/LocalEcCryptoProvider.java": {
-    "mtime": 1783342241.4968505,
+    "mtime": 1786290191.3836012,
     "ast_hash": "be4b85482386205c1eff15e0b7ca0edb",
     "semantic_hash": "be4b85482386205c1eff15e0b7ca0edb"
   },
   "app/src/main/java/com/eurobuddha/comms/MailText.java": {
-    "mtime": 1783342241.5017922,
+    "mtime": 1786290191.3839176,
     "ast_hash": "87ea4784adfb1a7389892e462e1359bd",
     "semantic_hash": "87ea4784adfb1a7389892e462e1359bd"
   },
   "app/src/main/java/com/eurobuddha/comms/MerchDb.java": {
-    "mtime": 1783342241.4947433,
+    "mtime": 1786290191.384286,
     "ast_hash": "32922df72f35193701b08d7060a303da",
     "semantic_hash": "32922df72f35193701b08d7060a303da"
   },
   "app/src/main/java/com/eurobuddha/comms/MerchMessage.java": {
-    "mtime": 1783342241.4964137,
+    "mtime": 1786290191.3848815,
     "ast_hash": "2415ec747cf5321bf22e6d004b2ea681",
     "semantic_hash": "2415ec747cf5321bf22e6d004b2ea681"
   },
   "app/src/main/java/com/eurobuddha/comms/NodeApi.java": {
-    "mtime": 1783342241.500133,
-    "ast_hash": "6c73906c4898ce5174645442c5cb44df",
-    "semantic_hash": "6c73906c4898ce5174645442c5cb44df"
+    "mtime": 1786290191.38561,
+    "ast_hash": "58ae4f6896fb677fd4b70b1f8953f257",
+    "semantic_hash": ""
   },
   "app/src/main/java/com/eurobuddha/comms/Opened.java": {
-    "mtime": 1783342241.5011868,
+    "mtime": 1786290191.38585,
     "ast_hash": "c80559706199630f299f3ebd4e3cbe67",
     "semantic_hash": "c80559706199630f299f3ebd4e3cbe67"
   },
   "app/src/main/java/com/eurobuddha/comms/QrUtil.java": {
-    "mtime": 1783342241.502171,
+    "mtime": 1786290191.3860245,
     "ast_hash": "9247ce1c783f6bedf555f3428e81c11d",
     "semantic_hash": "9247ce1c783f6bedf555f3428e81c11d"
   },
   "app/src/main/java/com/eurobuddha/comms/Sodium.java": {
-    "mtime": 1783342241.4972656,
+    "mtime": 1786290191.3861828,
     "ast_hash": "6400264019f0bec3881fe6918254993f",
     "semantic_hash": "6400264019f0bec3881fe6918254993f"
   },
   "app/src/main/java/com/eurobuddha/merchstudio/Catalog.java": {
-    "mtime": 1783342241.503538,
-    "ast_hash": "2843e2dec886166ba408e7e7fd2be9db",
-    "semantic_hash": "2843e2dec886166ba408e7e7fd2be9db"
+    "mtime": 1786290191.4116993,
+    "ast_hash": "97e7feca14bcad8b4a6555208bbf7852",
+    "semantic_hash": ""
   },
   "app/src/main/java/com/eurobuddha/merchstudio/Design.java": {
-    "mtime": 1783342241.5025895,
+    "mtime": 1786290191.4148176,
     "ast_hash": "9332a425afb4b2b8de2bb7eaea1a2db3",
     "semantic_hash": "9332a425afb4b2b8de2bb7eaea1a2db3"
   },
   "app/src/main/java/com/eurobuddha/merchstudio/MainActivity.java": {
-    "mtime": 1783342241.5045784,
-    "ast_hash": "7ef8eb27698c172ba28a933959f08f16",
-    "semantic_hash": "7ef8eb27698c172ba28a933959f08f16"
+    "mtime": 1786295614.4615357,
+    "ast_hash": "bec2aa730d20f429206ab636a20ada42",
+    "semantic_hash": ""
   },
   "app/src/main/java/com/eurobuddha/merchstudio/Util.java": {
-    "mtime": 1783342241.5028982,
-    "ast_hash": "4ef1fa58c1242654509c70f2aae116a7",
-    "semantic_hash": "4ef1fa58c1242654509c70f2aae116a7"
+    "mtime": 1786290191.4182336,
+    "ast_hash": "de8ce9260f28ff7ced420b37582e9d88",
+    "semantic_hash": ""
   },
   "build.gradle": {
     "mtime": 1782570412.0,
@@ -125,8 +125,8 @@
     "semantic_hash": "0198a4d57ec3806c6fc812fb81a1b75c"
   },
   "README.md": {
-    "mtime": 1785155682.8252232,
-    "ast_hash": "06412a5b5664ed68c73107fccc235f41",
+    "mtime": 1786290593.4623435,
+    "ast_hash": "50cb5130a32e4eb871a8f9f63ef89836",
     "semantic_hash": ""
   },
   "app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png": {
@@ -152,6 +152,51 @@
   "app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png": {
     "mtime": 1782571892.0,
     "ast_hash": "2557ed329bac345981b1b0fb4ff4667d",
+    "semantic_hash": ""
+  },
+  "app/src/main/java/com/eurobuddha/merchstudio/IconResolver.java": {
+    "mtime": 1786290191.4019175,
+    "ast_hash": "679a53a896a543ec2c36fb55f11af7fb",
+    "semantic_hash": ""
+  },
+  "app/src/main/java/com/eurobuddha/merchstudio/Identicon.java": {
+    "mtime": 1786290191.405113,
+    "ast_hash": "7264ff0f551c5d67d2d4cac66849ea9e",
+    "semantic_hash": ""
+  },
+  "app/src/main/java/com/eurobuddha/merchstudio/ImageLoader.java": {
+    "mtime": 1786290191.4080129,
+    "ast_hash": "c254d4d14d237ca0645d278c61c13926",
+    "semantic_hash": ""
+  },
+  "app/src/main/java/com/eurobuddha/merchstudio/StateNft.java": {
+    "mtime": 1786290191.3907344,
+    "ast_hash": "6a212acddbe42aebc3ce32ab9f7fffb9",
+    "semantic_hash": ""
+  },
+  "app/src/main/java/com/eurobuddha/merchstudio/TokenBalance.java": {
+    "mtime": 1786290191.3988264,
+    "ast_hash": "f9f6fdb747384ad275d726dbaa75d413",
+    "semantic_hash": ""
+  },
+  "app/src/main/java/com/eurobuddha/merchstudio/TokenMeta.java": {
+    "mtime": 1786290191.3954732,
+    "ast_hash": "129ec7b9d588480545ce8f86b26b267d",
+    "semantic_hash": ""
+  },
+  ".githooks/install.sh": {
+    "mtime": 1786883597.212585,
+    "ast_hash": "f31b37c6d1b5d340a5623f1715457ea0",
+    "semantic_hash": ""
+  },
+  ".githooks/pre-commit": {
+    "mtime": 1786883597.209047,
+    "ast_hash": "03526be838d5dd774506cc1f8b47f38c",
+    "semantic_hash": ""
+  },
+  "CLAUDE.md": {
+    "mtime": 1786883597.2216055,
+    "ast_hash": "2ba07750c434f1f38f87bd1444e7caf9",
     "semantic_hash": ""
   }
 }

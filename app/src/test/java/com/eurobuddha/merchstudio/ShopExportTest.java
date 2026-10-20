@@ -30,7 +30,18 @@ public class ShopExportTest {
  }
  @Test public void countContractRejectsOverflowAndNonPositiveValues(){
   assertEquals(1,ShopExport.count(BigInteger.ONE));assertEquals(Integer.MAX_VALUE,ShopExport.count(BigInteger.valueOf(Integer.MAX_VALUE)));
-  for(String n:new String[]{"0","-1","2147483648","4294967297","999999999999999999999999999999"})assertThrows(ArithmeticException.class,()->ShopExport.count(new BigInteger(n)));
+  assertEquals(1,ShopExport.count(1));assertEquals(Integer.MAX_VALUE,ShopExport.count(Integer.MAX_VALUE));
+  for(String n:new String[]{"2147483648","4294967297","999999999999999999999999999999"})assertThrows(ArithmeticException.class,()->ShopExport.count(new BigInteger(n)));
+  // 0 is a missing edition size, not an overflow — the two must stay distinguishable for the toast.
+  for(int n:new int[]{0,-1}){assertThrows(ShopExport.NonPositiveCountException.class,()->ShopExport.count(n));assertThrows(ShopExport.NonPositiveCountException.class,()->ShopExport.count(BigInteger.valueOf(n)));}
+ }
+ @Test public void pruneDropsOnlyDayOldExportDirectories()throws Exception{
+  File cache=tmp.newFolder();File fresh=new ShopExport(shop(),"Public-export",Collections.emptyList()).write(cache,i->"");
+  File stale=new ShopExport(shop(),"Public-export",Collections.emptyList()).write(cache,i->"").getParentFile();
+  assertTrue(stale.setLastModified(System.currentTimeMillis()-25L*60*60*1000));
+  File other=new File(cache,"shops/other");assertTrue(other.mkdir());assertTrue(other.setLastModified(0));
+  ShopExport.pruneStale(cache);ShopExport.pruneStale(tmp.newFolder());   // no shops dir: no-op
+  assertFalse(stale.exists());assertTrue(fresh.isFile());assertTrue(other.isDirectory());
  }
  @Test public void namesCannotEscapePrivateExportDirectory()throws Exception{
   for(String slug:new String[]{"../outside","/tmp/shop","a/b","a\\b","..","","a.shop"})assertThrows(IllegalArgumentException.class,()->new ShopExport(shop(),slug,Collections.emptyList()));

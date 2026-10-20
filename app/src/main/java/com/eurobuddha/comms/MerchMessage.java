@@ -28,8 +28,8 @@ public class MerchMessage {
     public String items = "";       // JSON array string: [{product,size,quantity,unitPrice,lineTotal}]
     public String product = "";     // human summary, e.g. "Coffee x2, Tea"
     public String amount = "";      // order total, decimal string
-    public String currency = "";    // display label: "Minima" | "USDT"
-    public String tokenid = "";     // 0x00 | mxUSDT id
+    public String currency = "";    // .shop schema value: "Minima" | "USDT" (the latter is shown as MxUSD)
+    public String tokenid = "";     // 0x00 | MxUSD id
     public String shipping = "";    // uk | intl | digital
     public String delivery = "";    // postal address or email (private; only the vendor decrypts it)
     public String buyerPayaddr = ""; // buyer's Minima receiving address (for refunds / paying them)

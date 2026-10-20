@@ -95,7 +95,7 @@ public class NodeApi {
 
     private void cmdOnMain(String command, Cb cb) {
         if (mReleased) {
-            if (cb != null) cb.onError("Node connection closed.");
+            deliverError(cb, "Node connection closed.");
             return;
         }
         final boolean[] done = {false};
@@ -104,7 +104,7 @@ public class NodeApi {
             mPending.remove(ref[0]);
             if (done[0] || dead()) return;
             done[0] = true;
-            if (cb != null) cb.onError("Minima Core didn't respond. Is it installed, running and enabled?");
+            deliverError(cb, "Minima Core didn't respond. Is it installed, running and enabled?");
         };
         ref[0] = timeout;
         mPending.add(timeout);
@@ -123,24 +123,26 @@ public class NodeApi {
                     // "enabled":false only appears on the gating reply; real command
                     // responses omit the key, so default true.
                     if (zResponse == null) {
-                        if (cb != null) cb.onError("Node result unavailable. Outcome unknown.");
+                        deliverError(cb, "Node result unavailable. Outcome unknown.");
                         return;
                     }
                     if (!zResponse.optBoolean("enabled", true)) {
                         if (mPairing != null) mPairing.onEnabled(false);
-                        if (cb != null) cb.onError(ERR_NOT_ENABLED);
+                        deliverError(cb, ERR_NOT_ENABLED);
                         return;
                     }
                     if (isTooLong(zResponse)) {
-                        if (cb != null) cb.onError(ERR_TOO_LONG);
+                        deliverError(cb, ERR_TOO_LONG);
                         return;
                     }
                     if (!(zResponse.opt("status") instanceof Boolean)) {
-                        if (cb != null) cb.onError(zResponse.optString("transporterror", "Node result unavailable. Outcome unknown."));
+                        deliverError(cb, zResponse.optString("transporterror", "Node result unavailable. Outcome unknown."));
                         return;
                     }
-                    if (!zResponse.optBoolean("status", false)) {
-                        if (cb != null) cb.onError(zResponse.optString("error", zResponse.optString("message", "Invalid node result. Outcome remains unknown.")));
+                    // A locked node queues sends as {status:false, pending:true}: that is not a
+                    // failure (CommsTransport.post treats it as sent), so let it through to onResult.
+                    if (!zResponse.optBoolean("status", false) && !zResponse.optBoolean("pending", false)) {
+                        deliverError(cb, zResponse.optString("error", zResponse.optString("message", "Invalid node result. Outcome remains unknown.")));
                         return;
                     }
                     // Contain callback crashes: one bad handler must not kill the broadcast pipeline.
@@ -149,6 +151,12 @@ public class NodeApi {
                 });
             }
         });
+    }
+
+    /** Contain error-handler crashes the same way onResult's are: one bad handler must not kill the pipeline. */
+    private static void deliverError(Cb cb, String message) {
+        try { if (cb != null) cb.onError(message); }
+        catch (Throwable t) { android.util.Log.e("NodeApi", "error callback crashed", t); }
     }
 
     public void onDestroy() {

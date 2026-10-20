@@ -89,6 +89,13 @@ final class StudioData {
             return index>0 && (collectionSize<=0||index<=collectionSize) ? index : -1;
         } catch(ArithmeticException outsideRange){return -1;}
     }
+    /** Two replayable coins stamped with the same edition index. Its own type so the caller can
+     *  show the message verbatim while a generically malformed reply keeps the "Couldn't read
+     *  wallet:" prefix. */
+    static final class DuplicateEditionException extends IllegalArgumentException {
+        DuplicateEditionException(String message){super(message);}
+    }
+
     static JSONArray collection(JSONObject reply,String tokenid,int size) {
         JSONArray rows=coins(reply,tokenid);
         HashSet<Integer> indices=new HashSet<>();
@@ -97,7 +104,9 @@ final class StudioData {
             if(StateNft.isBuried(coin))continue;
             state(coin);
             int index=pieceIndex(coin,size);
-            if(index>0&&StateNft.replayableState(coin)&&!indices.add(index))throw invalid();
+            // Not a bad node reply: a legacy creator can legitimately stamp two coins with one index.
+            if(index>0&&StateNft.replayableState(coin)&&!indices.add(index))
+                throw new DuplicateEditionException("Collection has two pieces stamped #"+index+" — fix on-chain before listing");
         }
         return rows;
     }

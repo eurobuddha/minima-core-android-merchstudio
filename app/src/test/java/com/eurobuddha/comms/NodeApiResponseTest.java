@@ -23,6 +23,26 @@ public class NodeApiResponseTest {
         check(new JSONObject().put("status", true), true);
         check(new JSONObject().put("status", false).put("error", "Rejected"), false);
     }
+    /** A locked node queues a send as status:false + pending:true — that is "sent", never a retryable failure. */
+    @Test public void pendingReplyReachesSuccessCallbackNotError() throws Exception {
+        check(new JSONObject().put("status", false).put("pending", true).put("response", new JSONObject()), true);
+    }
+    @Test public void throwingErrorHandlerDoesNotEscapeTheBroadcastPipeline() throws Exception {
+        JSONObject rejected=new JSONObject().put("status", false).put("error", "Rejected");
+        try (MockedConstruction<Handler> handlers=mockConstruction(Handler.class,(h,c)->{
+            when(h.post(any())).thenAnswer(i->{ ((Runnable)i.getArgument(0)).run(); return true; });
+        }); MockedConstruction<MinimaAPI> clients=mockConstruction(MinimaAPI.class,(api,c)->{
+            doAnswer(i->{ ((MinimaAPIListener)i.getArgument(1)).response(rejected); return null; })
+                    .when(api).Command(anyString(),any());
+        })) {
+            NodeApi node=new NodeApi(mock(Context.class),null);
+            NodeApi.Cb callback=mock(NodeApi.Cb.class);
+            doThrow(new IllegalStateException("handler bug")).when(callback).onError(anyString());
+            node.cmd("txnpost id:fixture",callback);   // must not throw
+            verify(callback).onError("Rejected");
+            node.onDestroy();
+        }
+    }
     @Test public void releasedConnectionDoesNotDeliverLateResult() throws Exception {
         java.util.concurrent.atomic.AtomicReference<MinimaAPIListener> pending=new java.util.concurrent.atomic.AtomicReference<>();
         try (MockedConstruction<Handler> handlers=mockConstruction(Handler.class,(h,c)->{

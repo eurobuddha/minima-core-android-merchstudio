@@ -35,7 +35,7 @@ public class TokenMetadataParityTest {
                 JSONObject envelope=new JSONObject().put("token",value).put("script","RETURN TRUE");String before=envelope.toString();
                 for(Object record:new Object[]{envelope,envelope.toString(),value}){
                     StateNft.Meta meta=StateNft.parseMeta("0x1234",record);
-                    assertEquals("Collection 中文 Українська",meta.name);assertEquals(12,meta.size);assertTrue(StateNft.isCandidate(meta));
+                    assertEquals("Collection 中文 Українська",meta.name);assertEquals(12,meta.size);assertEquals("url",meta.mode);assertTrue(StateNft.isCandidate(meta));
                     assertEquals("https://example.invalid/cover.png",meta.icon);
                     assertEquals("https://example.invalid/nft/3.png",StateNft.imageUrl(meta,3,null));
                     TokenMeta cover=TokenMeta.parse(record,"0x1234");assertEquals(meta.name,cover.name);assertEquals(meta.icon,cover.iconUrl);
@@ -46,6 +46,9 @@ public class TokenMetadataParityTest {
     }
     @Test public void unnamedCollectionCannotBecomeJsonImagePayload()throws Exception{
         JSONObject details=new JSONObject().put("url","https://example.invalid/cover.png").put("size",12);
-        for(Object value:new Object[]{details,details.toString()})assertEquals("Collection",StateNft.parseMeta("0x1234",name(value)).name);
+        for(Object value:new Object[]{details,details.toString()}){
+            assertEquals("Collection",StateNft.parseMeta("0x1234",name(value)).name);
+            assertEquals("Token",TokenMeta.parse(name(value),"0x1234").name);assertEquals("Token",Util.tokenName(name(value),"0x1234"));
+        }
     }
 }

@@ -164,6 +164,7 @@ public class MainActivity extends AppCompatActivity {
 
         showGallery();
         node = new NodeApi(this, this::onPaired);
+        io.execute(() -> ShopExport.pruneStale(getCacheDir()));   // yesterday's export-* dirs
     }
 
     private void seedShipping() {
@@ -388,7 +389,8 @@ public class MainActivity extends AppCompatActivity {
                 if (isFinishing() || isDestroyed() || collections.get(col.tokenid) != col) return;
                 final JSONArray arr;
                 try { arr = StudioData.collection(j, col.tokenid, col.meta.size); }
-                catch (IllegalArgumentException invalid) { onError(invalid.getMessage()); return; }
+                catch (StudioData.DuplicateEditionException dup) { fail(dup.getMessage()); return; }   // names its cause
+                catch (IllegalArgumentException invalid) { onError(invalid.getMessage()); return; }   // keeps the "Couldn't read wallet:" prefix
                 col.coinsLoading = false; col.coinsLoaded = true; col.tooLong = false; col.coinsVerified = true;
                 col.ownedCoins.clear(); col.unstampedCount = 0;
                 java.util.HashSet<String> liveKeys = new java.util.HashSet<>();
@@ -426,10 +428,13 @@ public class MainActivity extends AppCompatActivity {
                 refreshIfCollection(col.tokenid);
             }
             @Override public void onError(String m) {
+                fail(NodeApi.ERR_TOO_LONG.equals(m) ? m : "Couldn't read wallet: " + m);
+            }
+            private void fail(String m) {
                 if (isFinishing() || isDestroyed() || collections.get(col.tokenid) != col) return;
                 col.coinsLoading = false;
                 if (NodeApi.ERR_TOO_LONG.equals(m)) col.tooLong = true;
-                else toast("Couldn't read wallet: " + m);
+                else toast(m);
                 refreshIfTag("gallery");
                 refreshIfCollection(col.tokenid);
             }
@@ -490,7 +495,8 @@ public class MainActivity extends AppCompatActivity {
         return l.stateIdx > 0 ? l.tokenid + "#" + l.stateIdx : l.tokenid;
     }
 
-    private String currencyLabel() { return "USDT".equals(currency) ? "mxUSDT" : "Minima"; }
+    /** "USDT" is the .shop schema value miniMall reads; the Minima token it names is MxUSD. */
+    private String currencyLabel() { return "USDT".equals(currency) ? "MxUSD" : "Minima"; }
 
     private boolean priced(NftListing l) {
         try { return new BigDecimal(l.price.trim()).signum() > 0; } catch (Exception e) { return false; }
@@ -1175,7 +1181,6 @@ public class MainActivity extends AppCompatActivity {
                         l.units = "1";
                         listings.put(col.tokenid + "#ALL", l);
                     }
-                    String previousArt = artUrlOf(l);
                     l.tokenid = col.tokenid; l.bundle = true; l.snMeta = col.meta;
                     l.listed = true; l.price = p;
                     refreshIfCollection(col.tokenid);
@@ -1216,7 +1221,7 @@ public class MainActivity extends AppCompatActivity {
         body.addView(sectionLabel("Pays in"));
         LinearLayout cur = new LinearLayout(this); cur.setOrientation(LinearLayout.HORIZONTAL);
         cur.addView(seg("Minima", currency.equals("Minima"), () -> { currency = "Minima"; tokenid = CommsTransport.MINIMA; refreshTop(buildShopDetails()); }));
-        cur.addView(seg("mxUSDT", currency.equals("USDT"), () -> { currency = "USDT"; tokenid = CommsTransport.USDT; refreshTop(buildShopDetails()); }));
+        cur.addView(seg("MxUSD", currency.equals("USDT"), () -> { currency = "USDT"; tokenid = CommsTransport.MXUSD; refreshTop(buildShopDetails()); }));
         body.addView(cur);
 
         // Shipping only matters for typed goods — NFT-only shops deliver on-chain.
@@ -1335,6 +1340,7 @@ public class MainActivity extends AppCompatActivity {
         }
         final ShopExport snapshot;
         try { snapshot = captureExport(sel); }
+        catch (ShopExport.NonPositiveCountException noSize) { toast(noSize.getMessage()); return; }
         catch (ArithmeticException unsupported) { toast("The .shop format supports edition and stock counts from 1 to 2,147,483,647. This listing exceeds that limit."); return; }
         catch (Exception e) { toast("Export failed: " + e.getMessage()); return; }
         exporting = true;
@@ -1428,7 +1434,7 @@ public class MainActivity extends AppCompatActivity {
                 po.put("nftBundle", 1);
                 po.put("nftPieces", c == null ? 0 : c.ownedCoins.size());
                 po.put("nftCollection", l.snMeta.name);
-                po.put("nftSupply", ShopExport.count(BigInteger.valueOf(l.snMeta.size)));
+                po.put("nftSupply", editionSize(l));
                 String bExt = l.snMeta.externalUrl;
                 if (bExt != null && (bExt.startsWith("http://") || bExt.startsWith("https://"))) po.put("nftExternalUrl", bExt);
             } else if (l.stateIdx > 0) {
@@ -1436,7 +1442,7 @@ public class MainActivity extends AppCompatActivity {
                 po.put("maxUnits", 1);
                 po.put("nftStateIdx", l.stateIdx);
                 po.put("nftCollection", l.snMeta.name);
-                po.put("nftSupply", ShopExport.count(BigInteger.valueOf(l.snMeta.size)));
+                po.put("nftSupply", editionSize(l));
                 String pExt = l.snMeta.externalUrl;
                 if (pExt != null && (pExt.startsWith("http://") || pExt.startsWith("https://"))) po.put("nftExternalUrl", pExt);
             } else {
@@ -1464,7 +1470,7 @@ public class MainActivity extends AppCompatActivity {
                 JSONObject co = new JSONObject();
                 co.put("tokenid", tid);
                 co.put("name", c.meta.name);
-                co.put("size", ShopExport.count(BigInteger.valueOf(c.meta.size)));
+                co.put("size", ShopExport.count(c.meta.size));
                 images.add(new ShopExport.Image("nftCollections", cols.length(), "icon",
                         IconResolver.resolve(c.meta.icon), c.tokenid, 320, 256, 24000));
                 cols.put(co);
@@ -1474,6 +1480,15 @@ public class MainActivity extends AppCompatActivity {
 
 
         return new ShopExport(o, slug(shopName), images);
+    }
+
+    /** A collection piece/bundle's edition size for the .shop; a promoted collection whose
+     *  metadata has size 0 (see StateNft.parseMeta) is reported by name, not as an overflow. */
+    private int editionSize(NftListing l) {
+        try { return ShopExport.count(l.snMeta.size); }
+        catch (ShopExport.NonPositiveCountException noSize) {
+            throw new ShopExport.NonPositiveCountException(displayName(l) + " has no edition size — refresh the gallery.");
+        }
     }
 
     /** Same image resolution, fallbacks and byte budgets as the original Studio exporter. */
