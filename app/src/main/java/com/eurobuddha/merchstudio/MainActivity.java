@@ -946,7 +946,7 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout prov = new LinearLayout(this); prov.setOrientation(LinearLayout.HORIZONTAL); prov.setGravity(Gravity.CENTER_VERTICAL);
         TextView tid = new TextView(this);
         String tkr = !piece && l.bal.meta.ticker != null && !l.bal.meta.ticker.isEmpty() ? l.bal.meta.ticker + " · " : "";
-        tid.setText(tkr + Util.shorten(l.tokenid));
+        tid.setText(tkr + l.tokenid);
         tid.setTextColor(Design.DIM2); tid.setTextSize(11.5f);
         tid.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         prov.addView(tid);
