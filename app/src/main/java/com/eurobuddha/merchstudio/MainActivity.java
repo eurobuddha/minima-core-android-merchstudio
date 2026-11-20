@@ -68,6 +68,8 @@ public class MainActivity extends AppCompatActivity {
     private boolean paired = false;
     private final java.util.Set<String> walletTokens = new java.util.HashSet<>();
     private String vendorPublicId = "", vendorAddress = "";
+    /** The shop key itself (from the node seed), kept to sign the listing on export (security review M1). */
+    private volatile com.eurobuddha.comms.CommsIdentity studioId;
 
     private String shopName = "", about = "";
     private String currency = "Minima", tokenid = CommsTransport.MINIMA;
@@ -253,7 +255,9 @@ public class MainActivity extends AppCompatActivity {
         io.execute(() -> {
             try {
                 byte[] seed = ikm.startsWith("0x") ? Hex.from(ikm) : ikm.getBytes(StandardCharsets.UTF_8);
-                String pid = CommsIdentity.fromSeed(ls, seed).publicId();
+                com.eurobuddha.comms.CommsIdentity id = CommsIdentity.fromSeed(ls, seed);
+                studioId = id;
+                String pid = id.publicId();
                 ui.post(() -> { vendorPublicId = pid; refreshIfTag("gallery"); });
             } catch (Exception e) { ui.post(() -> toast("Identity error: " + e.getMessage())); }
         });
@@ -1479,6 +1483,10 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
+        // The vendor's signed listing (security review M1): the shop without pictures, sealed and signed with the
+        // shop key to the shop key, so the vendor's own Inbox can tell it is theirs and unchanged.
+        if (studioId == null || !studioId.publicId().equals(vendorPublicId)) throw new IllegalStateException("Your shop key is not ready yet: connect your node and try again.");
+        o.put("listingSealed", new com.eurobuddha.comms.LocalEcCryptoProvider(ls, studioId).seal(vendorPublicId, ShopExport.listingOf(o).getBytes(StandardCharsets.UTF_8)));
         return new ShopExport(o, slug(shopName), images);
     }
 

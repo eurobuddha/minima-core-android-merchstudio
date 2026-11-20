@@ -33,6 +33,15 @@ final class ShopExport {
         this.images=Collections.unmodifiableList(new ArrayList<>(images));
     }
 
+    /** The listing Studio signs: the shop without pictures, collection icons or an earlier signature. */
+    static String listingOf(JSONObject shop) throws Exception {
+        JSONObject l=new JSONObject(shop.toString());
+        l.remove("nftCollections"); l.remove("listingSealed");
+        org.json.JSONArray p=l.optJSONArray("products");
+        for (int i=0;p!=null&&i<p.length();i++) { JSONObject x=p.optJSONObject(i); if (x!=null) x.remove("image"); }
+        return l.toString();
+    }
+
     JSONObject render(Resolver resolver) throws Exception {
         JSONObject result=new JSONObject(json);
         for (Image image:images) {
