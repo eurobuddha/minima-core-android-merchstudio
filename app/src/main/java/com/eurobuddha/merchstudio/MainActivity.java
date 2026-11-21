@@ -1349,9 +1349,11 @@ public class MainActivity extends AppCompatActivity {
         catch (Exception e) { toast("Export failed: " + e.getMessage()); return; }
         exporting = true;
         refreshTop(buildPreview());
+        final com.eurobuddha.comms.LocalEcCryptoProvider signer = new com.eurobuddha.comms.LocalEcCryptoProvider(ls, studioId);
+        final String to = vendorPublicId;
         io.execute(() -> {
             try {
-                File f = snapshot.write(getCacheDir(), MainActivity::resolveExportImage);
+                File f = snapshot.sealed(b -> signer.seal(to, b)).write(getCacheDir(), MainActivity::resolveExportImage);
                 Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", f);
                 ui.post(() -> {
                     finishExport();
@@ -1485,8 +1487,8 @@ public class MainActivity extends AppCompatActivity {
 
         // The vendor's signed listing (security review M1): the shop without pictures, sealed and signed with the
         // shop key to the shop key, so the vendor's own Inbox can tell it is theirs and unchanged.
+        // The signature itself is made on the io executor from this snapshot (ShopExport.sealed).
         if (studioId == null || !studioId.publicId().equals(vendorPublicId)) throw new IllegalStateException("Your shop key is not ready yet: connect your node and try again.");
-        o.put("listingSealed", new com.eurobuddha.comms.LocalEcCryptoProvider(ls, studioId).seal(vendorPublicId, ShopExport.listingOf(o).getBytes(StandardCharsets.UTF_8)));
         return new ShopExport(o, slug(shopName), images);
     }
 

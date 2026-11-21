@@ -78,9 +78,17 @@ public final class Util {
     /** A price or fee as the .shop carries it: the same number as a plain decimal (no exponent, sign "+" or
      *  spaces), so miniMall Shop 0.4.17+ accepts it; e.g. "1e3" → "1000", " .5" → "0.5". A value that is not a
      *  number is passed on trimmed (the shop refuses it). */
+    /** A price or fee as a plain decimal; a value longer than 80 characters or with an exponent beyond the .shop's
+     *  bounds (30 whole digits, 44 decimals) is returned as typed, never expanded (point release item 13: a huge
+     *  exponent must not build a huge string). */
     public static String plainAmount(String amt) {
         String t = amt == null ? "" : amt.trim();
-        try { return new BigDecimal(t).toPlainString(); } catch (NumberFormatException e) { return t; }
+        if (t.length() > 80) return t;
+        try {
+            BigDecimal d = new BigDecimal(t);
+            if (d.scale() > 44 || d.precision() - d.scale() > 30) return t;
+            return d.toPlainString();
+        } catch (NumberFormatException e) { return t; }
     }
 
     public static String tidyAmount(String amt) {
